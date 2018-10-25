@@ -7,8 +7,10 @@
 #include <iostream>
 #include <memory>
 #include <string>
+
 using namespace nt;
 using namespace std;
+
 class Robot: public IterativeRobot {
 private:
 
@@ -27,7 +29,10 @@ private:
 	TalonSRX * rDrive2 = new TalonSRX(14);
 	TalonSRX * lIntake = new TalonSRX(3);
 	TalonSRX * rIntake = new TalonSRX(2);
+
+	// Setup the arm
 	TalonSRX * arm = new TalonSRX(9);
+
 	DoubleSolenoid * intakes = new DoubleSolenoid(0, 1);
 	Joystick * dr = new Joystick(0);
 	Joystick * op = new Joystick(1);
@@ -40,7 +45,6 @@ private:
 
 	void RobotInit() {
 
-		// Initalize the preference instance object thingy idk what im talking about
 		SmartDashboard::PutNumber("Arm p", p);
 		SmartDashboard::PutNumber("Arm i", i);
 		SmartDashboard::PutNumber("Arm d", d);
@@ -64,9 +68,10 @@ private:
 				FeedbackDevice::CTRE_MagEncoder_Relative, 0, kTimeoutMs);
 		rDrive1->ConfigSelectedFeedbackSensor(
 				FeedbackDevice::CTRE_MagEncoder_Relative, 0, kTimeoutMs);
-		arm->ConfigSelectedFeedbackSensor(
-				FeedbackDevice::CTRE_MagEncoder_Relative, 0, kTimeoutMs);
 
+		// Setup the encoder for the arm
+		arm->ConfigSelectedFeedbackSensor(
+				FeedbackDevice::CTRE_MagEncoder_Absolute, 0, kTimeoutMs);
 
 	}
 	void DisabledPeriodic() {
