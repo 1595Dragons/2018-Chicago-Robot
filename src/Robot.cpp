@@ -14,11 +14,25 @@ using namespace std;
 class Robot: public IterativeRobot {
 private:
 
+	Timer PIDTimer;
+
+	double pi = 3.1415;
 	double reverse = -1;
 	double armPos = 0;
 
+	double armSensor = 0;
+	double iZone;
+	double pTerm;
+	double iTerm;
+	double dTerm;
+	double error;
+	double prevTime;
+	double prevPos;
+	double maxSensorPos = 4461;
+	double degreesPerTick = 180 / maxSensorPos;
+
 	// We get arm rate from driver station
-	double armRate;
+	double armRate = .1;
 
 	// PID for the arm
 	double p = .001, i = .001, d = 1;
@@ -72,12 +86,22 @@ private:
 		// Setup the encoder for the arm
 		arm->ConfigSelectedFeedbackSensor(
 				FeedbackDevice::CTRE_MagEncoder_Absolute, 0, kTimeoutMs);
+		arm->SetSensorPhase(true);
 
 	}
 	void DisabledPeriodic() {
 
 	}
 	void AutonomousInit() {
+
+	}
+	void AutonomousPeriodic() {
+
+	}
+	void TeleopInit() {
+
+		maxSensorPos = 4461;
+
 		p = SmartDashboard::GetNumber("Arm p", p);
 		i = SmartDashboard::GetNumber("Arm i", i);
 		d = SmartDashboard::GetNumber("Arm d", d);
@@ -86,11 +110,8 @@ private:
 		arm->Config_kP(0, p, kTimeoutMs);
 		arm->Config_kI(0, i, kTimeoutMs);
 		arm->Config_kD(0, d, kTimeoutMs);
-	}
-	void AutonomousPeriodic() {
+		arm->Config_kF(0, 0, kTimeoutMs);
 
-	}
-	void TeleopInit() {
 		armPos = 0;
 
 		arm->SetSelectedSensorPosition(0, 0, kTimeoutMs);
@@ -103,19 +124,50 @@ private:
 		arm->Config_kP(0, p, kTimeoutMs);
 		arm->Config_kI(0, i, kTimeoutMs);
 		arm->Config_kD(0, d, kTimeoutMs);
+
+		PIDTimer.Start();
 	}
 	void TeleopPeriodic() {
 
-		/*if(dr->GetRawButton(2)){
+		armSensor = arm->GetSelectedSensorPosition(0);
+
+		//error = armPos - armSensor;
+
+		//pTerm = error * p;
+
+		/*if (abs(error) < iZone) {
+		 iTerm += ((PIDTimer.Get() - prevTime)
+		 * (armSensor - prevPos)) * i;
+		 }
+		 else{
+		 iTerm = 0;
+		 }
+
+		 dTerm = ((armSensor - prevPos)
+		 / (PIDTimer.Get() - prevTime)) * d;
+
+		 */
+
+		if(dr->GetRawButton(2)){
 		 reverse = -1;
 		 }
 		 else if(dr->GetRawButton(1)){
 		 reverse = 1;
-		 }*/
-
-		//lDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse + .6 * dr->GetRawAxis(4));
-		//rDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse - .6 * dr->GetRawAxis(4));
+		 }
+		/*if (op->GetRawButton(2)) {
+			if (armSensor < 90 / degreesPerTick;) {
+				armPos = 135/degreesPerTick;
+			} else {
+				armPos = 45/degreesPerTick;
+			}
+		}*/
 		arm->Set(ControlMode::Position, armPos);
+		lDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse + .6 * dr->GetRawAxis(4));
+		rDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse - .6 * dr->GetRawAxis(4));
+		//arm->Set(ControlMode::PercentOutput, (dTerm + iTerm + pTerm) * .5 + cos(armSensor * degreePerTick) * .5);
+		//arm->Set(ControlMode::PercentOutput, op->GetRawAxis(1));
+		SmartDashboard::PutNumber("angle on SRX", armSensor * degreesPerTick);
+		//SmartDashboard::PutNumber("arm out", cos(armSensor * degreesPerTick) * .3);
 		lIntake->Set(ControlMode::PercentOutput,
 				op->GetRawAxis(2) - op->GetRawAxis(3));
 		if (op->GetRawButton(6)) {
@@ -137,7 +189,18 @@ private:
 		SmartDashboard::PutNumber("r encoder",
 				rDrive1->GetSelectedSensorPosition());
 
-		SmartDashboard::PutNumber("Arm position", armPos);
+		SmartDashboard::PutNumber("Arm target position",
+				armPos * degreesPerTick);
+		SmartDashboard::PutNumber("Arm sensor value", armSensor);
+		SmartDashboard::PutNumber("Arm output on SRX",
+				arm->GetMotorOutputPercent());
+		SmartDashboard::PutNumber("Arm target on SRX",
+				arm->GetClosedLoopTarget(0));
+		SmartDashboard::PutNumber("Arm error on SRX",
+				arm->GetClosedLoopError(0));
+
+		//prevTime = PIDTimer.Get();
+		//prevPos = armSensor;
 	}
 
 	void DisabledInit() {
