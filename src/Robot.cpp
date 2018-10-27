@@ -32,10 +32,10 @@ private:
 	double degreesPerTick = 180 / maxSensorPos;
 
 	// We get arm rate from driver station
-	double armRate = .1;
+	double armRate = 30;
 
 	// PID for the arm
-	double p = .001, i = .001, d = 1;
+	double p = 1, i = .001, d = .1;
 
 	TalonSRX * lDrive1 = new TalonSRX(8);
 	TalonSRX * lDrive2 = new TalonSRX(11);
@@ -111,19 +111,12 @@ private:
 		arm->Config_kI(0, i, kTimeoutMs);
 		arm->Config_kD(0, d, kTimeoutMs);
 		arm->Config_kF(0, 0, kTimeoutMs);
+		arm->ConfigMotionCruiseVelocity(20000, kTimeoutMs); //20000
+		arm->ConfigMotionAcceleration(40000, kTimeoutMs); //40000
 
 		armPos = 0;
 
 		arm->SetSelectedSensorPosition(0, 0, kTimeoutMs);
-
-		p = SmartDashboard::GetNumber("Arm p", p);
-		i = SmartDashboard::GetNumber("Arm i", i);
-		d = SmartDashboard::GetNumber("Arm d", d);
-		armRate = SmartDashboard::GetNumber("Arm rate", armRate);
-
-		arm->Config_kP(0, p, kTimeoutMs);
-		arm->Config_kI(0, i, kTimeoutMs);
-		arm->Config_kD(0, d, kTimeoutMs);
 
 		PIDTimer.Start();
 	}
@@ -154,14 +147,19 @@ private:
 		 else if(dr->GetRawButton(1)){
 		 reverse = 1;
 		 }
+
 		/*if (op->GetRawButton(2)) {
 			if (armSensor < 90 / degreesPerTick;) {
-				armPos = 135/degreesPerTick;
+				arm->Set(ControlMode::MotionMagic, 135/degreesPerTick);
 			} else {
-				armPos = 45/degreesPerTick;
+				arm->Set(ControlMode::MotionMagic, 45/degreesPerTick);
 			}
 		}*/
-		arm->Set(ControlMode::Position, armPos);
+		if (op->GetRawButton(2)) {
+			//arm->Set(ControlMode::MotionMagic, 45/degreesPerTick);
+		}
+
+
 		lDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse + .6 * dr->GetRawAxis(4));
 		rDrive1->Set(ControlMode::PercentOutput, .8 * dr->GetRawAxis(1) * reverse - .6 * dr->GetRawAxis(4));
 		//arm->Set(ControlMode::PercentOutput, (dTerm + iTerm + pTerm) * .5 + cos(armSensor * degreePerTick) * .5);
@@ -175,6 +173,8 @@ private:
 		} else if (op->GetRawButton(5)) {
 			intakes->Set(DoubleSolenoid::kReverse);
 		}
+
+		//------Position PID------------
 		if (dr->GetRawButton(1)) {
 			lDrive2->SetSelectedSensorPosition(0, 0, kTimeoutMs);
 			rDrive1->SetSelectedSensorPosition(0, 0, kTimeoutMs);
@@ -182,6 +182,7 @@ private:
 		if (abs(op->GetRawAxis(1)) > .1) {
 			armPos += op->GetRawAxis(1) * armRate;
 		}
+		arm->Set(ControlMode::Position, armPos);
 		SmartDashboard::PutNumber("Current", PDP->GetTotalCurrent());
 		SmartDashboard::PutBoolean("Limit switch active", limitSwitch->Get());
 		SmartDashboard::PutNumber("l encoder",
@@ -199,8 +200,10 @@ private:
 		SmartDashboard::PutNumber("Arm error on SRX",
 				arm->GetClosedLoopError(0));
 
-		//prevTime = PIDTimer.Get();
-		//prevPos = armSensor;
+		SmartDashboard::PutNumber("velocity", (armSensor - prevPos) / (PIDTimer.Get() - prevTime));
+
+		prevTime = PIDTimer.Get();
+		prevPos = armSensor;
 	}
 
 	void DisabledInit() {
